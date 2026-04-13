@@ -1,0 +1,17 @@
+# KPT自己改善システム
+
+## セッション終了時のルール
+- セッション終了時、SessionEnd hookが自動で作業ログを `~/.claude/kpt-data/work-logs/` に生成する
+- hookが動作しなかった場合（短いセッション等）、次回セッション開始時にgit logから復元してログを書くこと
+
+## セッション開始時のルール
+- セッション開始時、`~/.claude/kpt-data/work-logs/` の最新ファイルを確認する
+- 前回セッションのログが存在しない場合、`git log` と `git diff` から前回の作業内容を推測し、ログを補完生成すること
+- `~/.claude/kpt-data/kpt/` の最新KPTファイルを確認し、Try項目を意識して作業すること
+
+## KPT運用ルール
+- `/weekly-kpt` コマンドで週次KPTを実行する（推奨: 毎週金曜日）
+- KPT結果は `~/.claude/kpt-data/kpt/YYYY-WXX.md` に保存される
+- `/apply-kpt` コマンドでTry項目をCLAUDE.md・hook・スキルに反映する
+- Try項目の「CLAUDE.mdにルール追加」は最終手段。hook化・スキル化を優先すること
+- 改善の適用先はスコープで判断: 全プロジェクト共通 → ~/.claude/ / プロジェクト固有 → .claude/

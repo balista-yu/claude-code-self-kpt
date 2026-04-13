@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/session-end-analyze.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
