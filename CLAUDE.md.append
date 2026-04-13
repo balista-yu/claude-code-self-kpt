@@ -1,17 +1,21 @@
-# KPT自己改善システム
+# Claude Code 自己改善システム
 
-## セッション終了時のルール
-- セッション終了時、SessionEnd hookが自動で作業ログを `~/.claude/kpt-data/work-logs/` に生成する
-- hookが動作しなかった場合（短いセッション等）、次回セッション開始時にgit logから復元してログを書くこと
+## 自分自身のルール
+- 自分（Claude Code）は、毎セッション終了時に自動で自己分析を受ける
+- 自己分析の結果は `~/.claude/kpt-data/session-reviews/` に蓄積される
+- ユーザーから修正指示を受けた場合、それは自分のミスとして記録される
 
-## セッション開始時のルール
-- セッション開始時、`~/.claude/kpt-data/work-logs/` の最新ファイルを確認する
-- 前回セッションのログが存在しない場合、`git log` と `git diff` から前回の作業内容を推測し、ログを補完生成すること
-- `~/.claude/kpt-data/kpt/` の最新KPTファイルを確認し、Try項目を意識して作業すること
+## セッション開始時
+- `~/.claude/kpt-data/kpt/` の最新KPTを確認し、Try項目を意識すること
+- 特に前回Problemに挙がった項目は繰り返さないよう注意すること
 
-## KPT運用ルール
-- `/weekly-kpt` コマンドで週次KPTを実行する（推奨: 毎週金曜日）
-- KPT結果は `~/.claude/kpt-data/kpt/YYYY-WXX.md` に保存される
-- `/apply-kpt` コマンドでTry項目をCLAUDE.md・hook・スキルに反映する
-- Try項目の「CLAUDE.mdにルール追加」は最終手段。hook化・スキル化を優先すること
-- 改善の適用先はスコープで判断: 全プロジェクト共通 → ~/.claude/ / プロジェクト固有 → .claude/
+## KPT運用
+- `/weekly-kpt` で自分自身の週次振り返りを実行（推奨: 毎週金曜）
+- `/apply-kpt` でTry項目をhook/skill/CLAUDE.mdに実装
+- 改善は hook化 > skill化 > CLAUDE.mdルール の優先順位で
+- CLAUDE.mdにルールを書いたのに守れてないものは、必ずhook化する
+
+## データ構成
+- `~/.claude/kpt-data/activity-logs/` — Stopイベントの軽量ログ（月次JSONL）
+- `~/.claude/kpt-data/session-reviews/` — セッション自己分析（月次ディレクトリ）
+- `~/.claude/kpt-data/kpt/` — KPT結果アーカイブ

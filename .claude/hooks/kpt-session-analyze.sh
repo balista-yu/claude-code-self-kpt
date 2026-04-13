@@ -1,8 +1,9 @@
 #!/bin/bash
 # =============================================================================
-# Session End Auto-Analyzer (Global Version)
-# セッション終了時にトランスクリプトを自動分析し、作業ログを生成する
-# 配置先: ~/.claude/hooks/session-end-analyze.sh
+# SessionEnd Hook: ユーザー指摘分析
+# セッション終了時にトランスクリプトを分析し、
+# Claude Code自身が「何を間違えたか」「何を指摘されたか」を記録する
+# 配置先: ~/.claude/hooks/kpt-session-analyze.sh
 # =============================================================================
 
 # 再帰防止
@@ -12,18 +13,17 @@ fi
 
 INPUT=$(cat)
 
-# バックグラウンドで実行（SessionEnd hookはプロセス終了で殺されるため）
+# バックグラウンド実行（SessionEndはプロセス終了で殺されるため）
 (
   TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // empty')
   SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"')
   CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 
-  # トランスクリプトが存在しない場合はスキップ
   if [ -z "$TRANSCRIPT_PATH" ] || [ ! -f "$TRANSCRIPT_PATH" ]; then
     exit 0
   fi
 
-  # 10KB未満の短いセッションはスキップ
+  # 10KB未満はスキップ
   if [ "$(uname)" = "Darwin" ]; then
     FILE_SIZE=$(stat -f%z "$TRANSCRIPT_PATH" 2>/dev/null || echo 0)
   else
@@ -31,22 +31,22 @@ INPUT=$(cat)
   fi
   [ "${FILE_SIZE:-0}" -lt 10240 ] && exit 0
 
-  # プロジェクト名を抽出（cwdの末尾ディレクトリ名）
   PROJECT_NAME=$(basename "$CWD" 2>/dev/null || echo "unknown")
 
-  # グローバル出力ディレクトリ
-  LOG_DIR="$HOME/.claude/kpt-data/work-logs"
+  # 月次ローテーション
+  YEAR_MONTH=$(date +"%Y-%m")
+  LOG_DIR="$HOME/.claude/kpt-data/session-reviews"
   mkdir -p "$LOG_DIR"
 
   TODAY=$(date +%Y-%m-%d)
   TIMESTAMP=$(date +%H%M%S)
-  OUTPUT_FILE="${LOG_DIR}/${TODAY}_${TIMESTAMP}_${SESSION_ID:0:8}.md"
+  OUTPUT_FILE="${LOG_DIR}/${YEAR_MONTH}/${TODAY}_${TIMESTAMP}_${SESSION_ID:0:8}.md"
+  mkdir -p "$(dirname "$OUTPUT_FILE")"
 
-  # 一時ファイル
+  # トランスクリプトから発言を抽出
   PROMPT_FILE=$(mktemp)
   ANALYSIS_PROMPT=$(mktemp)
 
-  # トランスクリプトからユーザーとアシスタントの発言を抽出
   jq -r '
     select(.type == "user" or .type == "assistant") |
     if .type == "user" then
@@ -72,48 +72,43 @@ INPUT=$(cat)
     end
   ' "$TRANSCRIPT_PATH" 2>/dev/null > "$PROMPT_FILE"
 
-  # 分析プロンプト
   cat > "$ANALYSIS_PROMPT" << PROMPT_END
-あなたはClaude Codeのセッション分析AIです。以下のセッションログを分析し、指定のフォーマットで作業ログを生成してください。
+あなたはClaude Codeの自己分析AIです。
+以下はClaude Codeのセッションログです。**Claude Code自身の視点**で振り返り、自分が何を間違えたか、何を改善すべきかを分析してください。
 
 プロジェクト: ${PROJECT_NAME}
-作業ディレクトリ: ${CWD}
 
-## 出力フォーマット（Markdownで出力）
+## 出力フォーマット（Markdownで出力、余計な前置き不要）
 
-# セッション作業ログ
-
-## メタ情報
-- プロジェクト: ${PROJECT_NAME}
-- 日時: ${TODAY} ${TIMESTAMP}
+# 自己分析: ${PROJECT_NAME} (${TODAY})
 
 ## 概要
-（1-2文でこのセッションで行った作業を要約）
+（1-2文で何をしたか）
 
-## 実施内容
-- （具体的に何をしたか箇条書き）
+## 自己評価
+- 指摘なしで完了したタスク数: X
+- ユーザーから修正指示を受けたタスク数: X
 
-## アプローチ・判断
-- （どのような設計判断やアプローチを取ったか）
+## ユーザー指摘事項（自分が間違えた・不十分だったこと）
+各指摘を以下の形式で記録:
+- **[カテゴリ]** 指摘内容
+  - 自分がやったこと: （何をしたか）
+  - ユーザーの修正指示: （何を言われたか）
+  - 根本原因: （なぜ間違えたか）
 
-## ユーザー指摘事項
-- （ユーザーが修正を求めた箇所、やり直しを指示した箇所）
-- （指摘がなければ「特になし」）
+カテゴリ例: コード品質 / 仕様理解 / テスト / コミット / PR / 命名規則 / アーキテクチャ / スコープ逸脱 / 指示の読み落とし
 
-## 詰まった点・課題
-- （エラーが出た、何度もやり直した箇所）
-- （なければ「特になし」）
+指摘がなければ「指摘なし — このセッションはスムーズに完了」と記載。
 
-## 改善提案
-### 提案1: （タイトル）
-- 種別: hook / skill / CLAUDE.mdルール / ワークフロー
-- 概要: （何をどう改善するか）
-- 期待効果: （これにより何が良くなるか）
+## 自己改善アクション
+- **[hook化推奨]** （hookで防げるミス）
+- **[skill化推奨]** （パターン化できる成功体験）
+- **[CLAUDE.mdルール]** （本当にルールで防げるもののみ）
 
-重要な注意点:
-- ユーザー指摘事項は特に正確に記録すること（KPTのProblemの材料になる）
-- 改善提案は「CLAUDE.mdにルール追加」だけでなく、hook化やスキル化も積極的に提案すること
-- 簡潔に、しかし振り返りに必要な情報は漏らさず記録すること
+注意:
+- 主語は「自分（Claude Code）」。「ユーザーがXXした」ではなく「自分がXXを間違えた」と書く
+- CLAUDE.mdルール追加は最終手段。hook化・skill化を優先して提案すること
+- 指摘がなかったセッションでも、うまくいった理由を分析すること
 
 以下がセッションログです:
 PROMPT_END

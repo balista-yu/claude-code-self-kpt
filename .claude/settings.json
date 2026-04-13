@@ -1,11 +1,22 @@
 {
   "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash $HOME/.claude/hooks/kpt-activity-log.sh"
+          }
+        ]
+      }
+    ],
     "SessionEnd": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "bash $HOME/.claude/hooks/session-end-analyze.sh",
+            "command": "bash $HOME/.claude/hooks/kpt-session-analyze.sh",
             "timeout": 10
           }
         ]
