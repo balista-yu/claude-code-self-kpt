@@ -83,11 +83,12 @@ python3 ~/.claude/scripts/kpt-viewer.py
 
 ### 手動でセッション分析をテスト
 ```bash
-echo '{"transcript_path":"'"$(ls -t ~/.claude/projects/*/transcript.jsonl | head -1)"'","session_id":"test","cwd":"'"$(pwd)"'"}' \
+TRANSCRIPT=$(find ~/.claude/projects/ -maxdepth 2 -name "*.jsonl" | head -1)
+
+echo '{"transcript_path":"'"$TRANSCRIPT"'","session_id":"test","cwd":"'"$(pwd)"'"}' \
   | bash ~/.claude/hooks/kpt-session-analyze.sh
 
-# 10秒待ってから確認
-ls ~/.claude/kpt-data/session-reviews/
+sleep 15 && ls -la ~/.claude/kpt-data/session-reviews/
 ```
 
 ## データ構成
