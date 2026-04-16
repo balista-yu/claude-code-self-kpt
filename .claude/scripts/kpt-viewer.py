@@ -222,7 +222,22 @@ DASHBOARD_HTML = """<!DOCTYPE html>
   .modal { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.8); z-index:100; overflow-y:auto; }
   .modal-inner { max-width:800px; margin:40px auto; background:#1e293b; border-radius:12px; padding:28px; }
   .modal-close { float:right; background:none; border:none; color:#94a3b8; font-size:1.5rem; cursor:pointer; }
-  .modal pre { white-space:pre-wrap; font-size:0.82rem; line-height:1.6; }
+  .modal-body { font-size:0.88rem; line-height:1.7; }
+  .modal-body h1 { font-size:1.4rem; color:#38bdf8; margin:18px 0 10px; border-bottom:1px solid #334155; padding-bottom:6px; }
+  .modal-body h2 { font-size:1.15rem; color:#7dd3fc; margin:16px 0 8px; }
+  .modal-body h3 { font-size:1rem; color:#94a3b8; margin:12px 0 6px; }
+  .modal-body p { margin:6px 0; }
+  .modal-body ul, .modal-body ol { margin:6px 0 6px 20px; }
+  .modal-body li { margin:3px 0; }
+  .modal-body code { background:#334155; padding:1px 5px; border-radius:3px; font-size:0.82rem; }
+  .modal-body pre { background:#0f172a; padding:12px; border-radius:6px; overflow-x:auto; margin:8px 0; }
+  .modal-body pre code { background:none; padding:0; }
+  .modal-body strong { color:#f8fafc; }
+  .modal-body blockquote { border-left:3px solid #38bdf8; padding-left:12px; color:#94a3b8; margin:8px 0; }
+  .modal-body table { border-collapse:collapse; margin:8px 0; width:100%; }
+  .modal-body th, .modal-body td { border:1px solid #334155; padding:6px 10px; text-align:left; font-size:0.82rem; }
+  .modal-body th { background:#334155; color:#e2e8f0; }
+  .modal-body hr { border:none; border-top:1px solid #334155; margin:12px 0; }
   .tabs { display:flex; gap:6px; margin-bottom:22px; }
   .tab { padding:7px 18px; border-radius:8px; background:#334155; border:none; color:#94a3b8; cursor:pointer; font-size:0.85rem; }
   .tab.active { background:#38bdf8; color:#0f172a; font-weight:bold; }
@@ -256,9 +271,10 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 <div class="modal" id="modal" onclick="if(event.target===this)this.style.display='none'">
   <div class="modal-inner">
     <button class="modal-close" onclick="document.getElementById('modal').style.display='none'">&times;</button>
-    <pre id="modal-body"></pre>
+    <div class="modal-body" id="modal-body"></div>
   </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
 let D;
 async function load(){D=await(await fetch('/api/data')).json();render();}
@@ -267,7 +283,7 @@ function showTab(n,el){
   el.classList.add('active');
   ['overview','reviews','kpts'].forEach(id=>{document.getElementById(id).style.display=id===n?'block':'none';});
 }
-function showModal(c){document.getElementById('modal-body').textContent=c;document.getElementById('modal').style.display='block';}
+function showModal(c){document.getElementById('modal-body').innerHTML=marked.parse(c);document.getElementById('modal').style.display='block';}
 function render(){
   if(!D)return;
   const pCount=Object.keys(D.activity.projects||{}).length;
