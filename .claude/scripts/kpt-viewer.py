@@ -286,6 +286,7 @@ function showTab(n,el){
 function showModal(c){document.getElementById('modal-body').innerHTML=marked.parse(c);document.getElementById('modal').style.display='block';}
 function render(){
   if(!D)return;
+  window.__contents={reviews:D.reviews.map(r=>r.content||''),kpts:D.kpts.map(k=>k.content||'')};
   const pCount=Object.keys(D.activity.projects||{}).length;
   document.getElementById('stats').innerHTML=`
     <div class="stat-card"><div class="stat-value">${D.total_reviews}</div><div class="stat-label">Sessions Analyzed</div></div>
@@ -310,17 +311,20 @@ function render(){
   // Reviews
   const rl=document.getElementById('review-list');
   if(!D.reviews.length){rl.innerHTML='<div class="empty">No self-reviews yet. Complete a session to generate one.</div>';}
-  else{rl.innerHTML=D.reviews.slice().reverse().map(r=>{
+  else{rl.innerHTML=D.reviews.slice().reverse().map((r,i)=>{
+    const idx=D.reviews.length-1-i;
     if(r.error)return`<div class="entry">${r.file}: ${r.error}</div>`;
     const badge=r.issue_count>0?`<span class="entry-badge-issue">${r.issue_count} issues</span>`:`<span class="entry-badge-clean">clean</span>`;
-    return`<div class="entry" onclick='showModal(${JSON.stringify(JSON.stringify(r.content))})'>
+    return`<div class="entry" onclick="showModal(window.__contents.reviews[${idx}])">
       <span class="entry-date">${r.date} ${r.time.replace(/(\\d{2})(\\d{2})(\\d{2})/,"$1:$2:$3")}</span>
       <span class="entry-project">${r.project}</span>${badge}
       <div class="entry-summary">${r.summary}</div></div>`;}).join('');}
   // KPTs
   const kl=document.getElementById('kpt-list');
   if(!D.kpts.length){kl.innerHTML='<div class="empty">No KPT reports yet. Run /weekly-kpt to generate one.</div>';}
-  else{kl.innerHTML=D.kpts.slice().reverse().map(k=>`<div class="entry" onclick='showModal(${JSON.stringify(JSON.stringify(k.content))})'><span class="entry-date">${k.file}</span></div>`).join('');}
+  else{kl.innerHTML=D.kpts.slice().reverse().map((k,i)=>{
+    const idx=D.kpts.length-1-i;
+    return`<div class="entry" onclick="showModal(window.__contents.kpts[${idx}])"><span class="entry-date">${k.file}</span></div>`;}).join('');}
 }
 load();
 </script>
