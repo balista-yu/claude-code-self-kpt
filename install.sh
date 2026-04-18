@@ -16,10 +16,12 @@ echo "[1/6] Creating directories..."
 mkdir -p "$CLAUDE_DIR/hooks"
 mkdir -p "$CLAUDE_DIR/skills/weekly-kpt"
 mkdir -p "$CLAUDE_DIR/skills/apply-kpt"
+mkdir -p "$CLAUDE_DIR/skills/forward-kpt"
 mkdir -p "$CLAUDE_DIR/scripts"
 mkdir -p "$CLAUDE_DIR/kpt-data/activity-logs"
 mkdir -p "$CLAUDE_DIR/kpt-data/session-reviews"
 mkdir -p "$CLAUDE_DIR/kpt-data/kpt"
+mkdir -p "$CLAUDE_DIR/kpt-data/experiments"
 
 # 2. Hooks
 echo "[2/6] Installing hooks..."
@@ -32,6 +34,7 @@ chmod +x "$CLAUDE_DIR/hooks/kpt-session-analyze.sh"
 echo "[3/6] Installing skills..."
 cp "$SCRIPT_DIR/.claude/skills/weekly-kpt/SKILL.md" "$CLAUDE_DIR/skills/weekly-kpt/"
 cp "$SCRIPT_DIR/.claude/skills/apply-kpt/SKILL.md" "$CLAUDE_DIR/skills/apply-kpt/"
+cp "$SCRIPT_DIR/.claude/skills/forward-kpt/SKILL.md" "$CLAUDE_DIR/skills/forward-kpt/"
 
 # 4. Dashboard
 echo "[4/6] Installing dashboard..."
@@ -92,7 +95,8 @@ echo "  1. Every Claude response → activity logged (Stop hook)"
 echo "  2. Every session end → self-analysis generated (SessionEnd hook)"
 echo "  3. Weekly: run /weekly-kpt in Claude Code"
 echo "  4. Then: run /apply-kpt to auto-implement improvements"
-echo "  5. Dashboard: python3 ~/.claude/scripts/kpt-viewer.py"
+echo "  5. Optional: run /forward-kpt to set weekly Experiments (攻めの一手)"
+echo "  6. Dashboard: python3 ~/.claude/scripts/kpt-viewer.py"
 echo ""
 
 # Dependency check

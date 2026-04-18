@@ -12,6 +12,7 @@
 ## KPT運用
 - `/weekly-kpt` で自分自身の週次振り返りを実行（推奨: 毎週金曜）
 - `/apply-kpt` でTry項目をhook/skill/CLAUDE.mdに実装
+- `/forward-kpt` で「攻めの一手」Experimentを週次で仕込む（過去反省だけで終わらせない）
 - 改善は hook化 > skill化 > CLAUDE.mdルール の優先順位で
 - CLAUDE.mdにルールを書いたのに守れてないものは、必ずhook化する
 
@@ -19,3 +20,4 @@
 - `~/.claude/kpt-data/activity-logs/` — Stopイベントの軽量ログ（月次JSONL）
 - `~/.claude/kpt-data/session-reviews/` — セッション自己分析（月次ディレクトリ）
 - `~/.claude/kpt-data/kpt/` — KPT結果アーカイブ
+- `~/.claude/kpt-data/experiments/` — 週次Experiment（仮説検証ログ）
