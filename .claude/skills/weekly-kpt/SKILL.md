@@ -27,6 +27,11 @@ allowed-tools: Read, Glob, Grep, Bash, Write
 3. **Gitログ**: `git log --oneline --since="1 week ago"` を実行（現在プロジェクト）
 4. **前回のKPT**: `~/.claude/kpt-data/kpt/` の最新ファイルを読む
 5. **現在のルール**: `~/.claude/CLAUDE.md` と `./CLAUDE.md` を読む
+6. **Try実装差分**: `~/.claude/` 配下の前週期間中の変更を検出
+   - `git -C ~/.claude log --since="<対象期間開始>" --until="<対象期間終了>" --name-status` で変更ファイル一覧
+   - `~/.claude` が git管理でない場合は `find ~/.claude/hooks ~/.claude/skills ~/.claude/CLAUDE.md -newer <基準ファイル>` で代替
+   - 対象: `hooks/*.sh`, `skills/**/SKILL.md`, `CLAUDE.md`, `settings.json`
+7. **進行中のExperiment**: `~/.claude/kpt-data/experiments/` から対象期間の未判定Experimentを読む（`/forward-kpt` で作成されたもの）
 
 ## Step 3: 分析
 
@@ -35,8 +40,33 @@ allowed-tools: Read, Glob, Grep, Bash, Write
 - **繰り返し同じ指摘を受けていないか**: カテゴリ別に集計（コード品質、仕様理解、テスト、コミット等）
 - **どんなタスクなら自分はうまくやれるか**: 指摘なしセッションの共通点
 - **どんなタスクで自分はミスしやすいか**: 指摘が多いセッションの共通点
-- **前回Tryは実行できたか**: 前回KPTのTryの達成状況
 - **ルールを書いたのに守れてないものはないか**: CLAUDE.mdのルール vs 実際の指摘
+
+### Step 3-a: Try実装率の自動判定
+
+前回KPTの各Try項目に対して、Step 2-6で収集した差分とマッチングして判定:
+
+判定ラベル:
+- **done**: Try文言と意味的に一致する変更が `~/.claude/` 配下に存在する
+- **partial**: 一部のみ実装（例: hook化と書いたがCLAUDE.mdルールだけ追加された）
+- **not-done**: 対応する変更なし
+
+マッチング基準:
+- Try種別が「hook」→ `hooks/` 配下の新規/変更ファイルを確認
+- Try種別が「skill」→ `skills/<name>/SKILL.md` の新規/変更を確認
+- Try種別が「CLAUDE.mdルール」→ `CLAUDE.md` の追記内容を確認
+- ファイル名・スクリプト内容・ルール文言が Try の目的と一致するか自己判断
+
+未達成（not-done / partial）Tryは Step 4 の「Stale Tries」に自動繰り越し。
+放置週数が3週以上の Try は「要検討」フラグを立て、本当に必要か / 別手段で達成済みかを再評価する。
+
+### Step 3-b: Experiment 結果の判定
+
+進行中Experimentがあれば、各Experimentについて:
+- **Success Criteria** と実データ（session-reviews / activity-logs）を照合
+- **成功** → Try昇格候補（恒常化）として Step 4 の Try に入れる
+- **失敗** → Problem として記録、根本原因分析
+- **継続** → 期間延長 or 条件見直しを提案
 
 ## Step 4: KPT生成
 
@@ -53,10 +83,19 @@ YYYY-MM-DD 〜 YYYY-MM-DD
 - セッション数: X件
 - うち指摘なし: X件（XX%）
 
-## 前回Tryの追跡
-| Try項目 | 種別 | 実施状況 | 効果 |
-|---------|------|---------|------|
-| （前回のTry） | hook/skill/rule | ○/△/× | （指摘が減ったか等） |
+## 前回Tryの達成率
+**達成率: X/Y (XX%)**
+
+| Try項目 | 種別 | 実施状況 | 実装先 | 効果 |
+|---------|------|---------|--------|------|
+| （前回のTry） | hook/skill/rule | done/partial/not-done | （ファイルパス or なし） | （指摘が減ったか等） |
+
+## Experiment結果
+進行中だったExperimentの判定:
+
+| Experiment | Hypothesis | 結果 | 次アクション |
+|------------|-----------|------|-------------|
+| （Experiment名） | （仮説） | success/fail/continue | Try昇格 / Problem化 / 延長 |
 
 ## Keep（自分がうまくやれたこと）
 ### K1: （タイトル）
@@ -91,11 +130,26 @@ YYYY-MM-DD 〜 YYYY-MM-DD
 - 指摘なし率: XX%（前週: XX% / 変化: +X%）
 - 最頻出指摘カテゴリ: （カテゴリ名 X回）
 - 改善トレンド: （良くなってる / 横ばい / 悪化）
+- Try達成率: XX%（前週: XX% / 変化: +X%）
+- Experiment成功率: X/Y
 ```
 
-## Step 5: ユーザーへの提案
+## Step 5: Experiment 結果の反映
+
+Step 3-b で判定した Experiment について、以下を実行:
+
+1. **`~/.claude/kpt-data/experiments/experiment_YYYY-WXX.md` の status を更新**
+   - success / fail / continue
+   - 判定日と根拠を追記
+2. **CLAUDE.md の一時セクション削除**
+   - `~/.claude/CLAUDE.md` と `./CLAUDE.md` から
+     `<!-- FORWARD-KPT-EXPERIMENTS:START -->` 〜 `<!-- FORWARD-KPT-EXPERIMENTS:END -->` ブロックを削除
+   - `continue` のものが残る場合は、該当 E だけ残して他は削除
+
+## Step 6: ユーザーへの提案
 
 KPT結果を提示した後:
 - 「Tryの中ですぐ実装できるものがあります。`/apply-kpt` で反映しますか？」と確認
 - 特にProblemの発生回数が多いものは強く推奨
 - 「ルールはあるのに守れてない」Problemは **必ず** hook化を提案
+- 「今週は攻めの一手を `/forward-kpt` で仕込みますか？」と案内（過去反省だけで終わらせない）
