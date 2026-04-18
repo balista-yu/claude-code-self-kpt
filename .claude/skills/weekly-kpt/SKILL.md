@@ -29,7 +29,10 @@ allowed-tools: Read, Glob, Grep, Bash, Write
 5. **現在のルール**: `~/.claude/CLAUDE.md` と `./CLAUDE.md` を読む
 6. **Try実装差分**: `~/.claude/` 配下の前週期間中の変更を検出
    - `git -C ~/.claude log --since="<対象期間開始>" --until="<対象期間終了>" --name-status` で変更ファイル一覧
-   - `~/.claude` が git管理でない場合は `find ~/.claude/hooks ~/.claude/skills ~/.claude/CLAUDE.md -newer <基準ファイル>` で代替
+   - `~/.claude` が git管理でない場合のフォールバック:
+     - 基準ファイル = **前回KPTファイル**（`~/.claude/kpt-data/kpt/YYYY-WXX.md` の前週版）
+     - 前回KPTが無い初回実行時は基準ファイル = **対象期間開始日の00:00タイムスタンプのダミー**（`touch -d "<対象期間開始> 00:00" /tmp/.kpt-since` 等で作成）
+     - `find ~/.claude/hooks ~/.claude/skills ~/.claude/CLAUDE.md ~/.claude/settings.json -newer <基準ファイル> -type f`
    - 対象: `hooks/*.sh`, `skills/**/SKILL.md`, `CLAUDE.md`, `settings.json`
 7. **進行中のExperiment**: `~/.claude/kpt-data/experiments/` から対象期間の未判定Experimentを読む（`/forward-kpt` で作成されたもの）
 
@@ -58,7 +61,18 @@ allowed-tools: Read, Glob, Grep, Bash, Write
 - ファイル名・スクリプト内容・ルール文言が Try の目的と一致するか自己判断
 
 未達成（not-done / partial）Tryは Step 4 の「Stale Tries」に自動繰り越し。
-放置週数が3週以上の Try は「要検討」フラグを立て、本当に必要か / 別手段で達成済みかを再評価する。
+
+### 「要検討」フラグの運用ルール
+
+放置週数が3週以上の Try は「要検討」フラグを立てる。立てた後の扱いは以下:
+
+- **翌週 `/weekly-kpt` で必ずユーザーに確認**: 「このTryは3週放置されてます。以下どうしますか？」
+  1. **削除** — 不要と判断。Stale Triesからも消す
+  2. **形を変えて再挑戦** — hook化→skill化など別手段に変換して新Tryとして再登録
+  3. **別Tryで達成済み** — 類似Tryで目的達成済み。達成として終了
+  4. **継続保持** — 来週もそのまま持ち越し（ただし要検討フラグは維持）
+- **自動削除はしない**: ユーザー判断なしに消さない（意図せぬ情報消失防止）
+- **KPT出力時の表示**: 要検討フラグ付きTryは Stale Tries 表に `⚠️ 要検討` アイコン付きで表示
 
 ### Step 3-b: Experiment 結果の判定
 

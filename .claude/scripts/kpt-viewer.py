@@ -57,10 +57,10 @@ def load_activity_stats():
                     stats["projects"][project]["interactions"] += 1
                     stats["projects"][project]["days"].add(date)
 
-                    # Hour × Weekday ヒートマップ
+                    # Hour × Weekday ヒートマップ（ローカルTZに変換）
                     ts = entry.get("timestamp", "")
                     try:
-                        dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                        dt = datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone()
                         stats["hour_weekday"][dt.weekday()][dt.hour] += 1
                     except Exception:
                         pass
@@ -216,14 +216,17 @@ def extract_tries_from_kpts(kpts):
             tid = m.group(1)
             title = m.group(2).strip()
             body = m.group(3)
-            implemented = bool(re.search(r"\[✅\s*実装済み\s*(\d{4}-\d{2}-\d{2})\]", body))
-            impl_date_match = re.search(r"\[✅\s*実装済み\s*(\d{4}-\d{2}-\d{2})\]", body)
+            impl_marker = re.compile(r"\[✅\s*実装済み\s*(\d{4}-\d{2}-\d{2})\]")
+            # タイトル自身にマーカーが入るケース（T1: xxx [✅ 実装済み 2026-04-01]）と
+            # ボディに入るケース両方を見る
+            impl_date_match = impl_marker.search(title) or impl_marker.search(body)
             impl_date = impl_date_match.group(1) if impl_date_match else None
+            clean_title = impl_marker.sub("", title).strip()
             tries.append({
                 "week": week,
                 "id": tid,
-                "title": title.replace("[✅", "").strip(),
-                "implemented": implemented,
+                "title": clean_title,
+                "implemented": impl_date is not None,
                 "impl_date": impl_date,
             })
     return tries
@@ -310,17 +313,19 @@ def project_issue_distribution(reviews):
 def session_quality_scatter(reviews, activity):
     """セッション長 × 指摘件数 散布図データ"""
     sizes = activity.get("session_sizes", {})
+    # session_idは先頭8文字だけ保存されているので prefix→size の逆引き辞書を事前構築
+    prefix_size = {}
+    for full_sid, n in sizes.items():
+        prefix_size.setdefault(full_sid[:8], 0)
+        prefix_size[full_sid[:8]] += n  # 同prefix衝突時は合算
     points = []
     for r in reviews:
         if "error" in r:
             continue
         sid = r.get("session_id", "")
-        # session_idは先頭8文字だけ保存されているのでprefix match
-        size = 0
-        for full_sid, n in sizes.items():
-            if full_sid.startswith(sid) and sid:
-                size = n
-                break
+        if not sid:
+            continue
+        size = prefix_size.get(sid[:8], 0)
         if size > 0:
             points.append({
                 "size": size,
@@ -536,7 +541,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
       <div id="cat-heatmap"></div>
     </div>
     <div class="section">
-      <h2>Activity Heatmap (Weekday × Hour, UTC)</h2>
+      <h2>Activity Heatmap (Weekday × Hour, local TZ)</h2>
       <div id="time-heatmap"></div>
     </div>
   </div>
@@ -581,6 +586,7 @@ function showTab(n,el){
 }
 function showModal(c){document.getElementById('modal-body').innerHTML=marked.parse(c);document.getElementById('modal').style.display='block';}
 function heatColor(v,mx){if(!mx||!v)return'#1e293b';const r=v/mx;const h=220-(r*220);return`hsl(${h},70%,${35+r*20}%)`;}
+function E(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function render(){
   if(!D)return;
   window.__contents={reviews:D.reviews.map(r=>r.content||''),kpts:D.kpts.map(k=>k.content||''),experiments:D.experiments.map(e=>e.content||'')};
@@ -588,7 +594,7 @@ function render(){
   // Burning alert
   const ba=document.getElementById('burning-alert');
   if(D.burning_categories && D.burning_categories.length){
-    ba.innerHTML=`<div class="alert"><div class="alert-title">🔥 燃えてるカテゴリ（直近7日で急増）</div>${D.burning_categories.map(b=>`<div class="alert-item">• <strong>${b.category}</strong>: ${b.recent}件（過去平均: ${b.past_weekly_avg}/週${b.multiplier?' × '+b.multiplier+'倍':''}）</div>`).join('')}</div>`;
+    ba.innerHTML=`<div class="alert"><div class="alert-title">🔥 燃えてるカテゴリ（直近7日で急増）</div>${D.burning_categories.map(b=>`<div class="alert-item">• <strong>${E(b.category)}</strong>: ${b.recent}件（過去平均: ${b.past_weekly_avg}/週${b.multiplier?' × '+b.multiplier+'倍':''}）</div>`).join('')}</div>`;
   } else ba.innerHTML='';
 
   const pCount=Object.keys(D.activity.projects||{}).length;
@@ -604,18 +610,18 @@ function render(){
   // Categories
   const cats=document.getElementById('categories');
   if(!D.top_categories.length){cats.innerHTML='<div class="empty">No issues yet</div>';}
-  else{const mx=D.top_categories[0][1];cats.innerHTML=D.top_categories.map(([l,c])=>`<div class="bar-row"><span class="label">${l}</span><div class="bar bar-issue" style="width:${(c/mx)*180}px">${c}</div></div>`).join('');}
+  else{const mx=D.top_categories[0][1];cats.innerHTML=D.top_categories.map(([l,c])=>`<div class="bar-row"><span class="label">${E(l)}</span><div class="bar bar-issue" style="width:${(c/mx)*180}px">${c}</div></div>`).join('');}
 
   // Actions
   const acts=document.getElementById('actions');
   const actEntries=Object.entries(D.action_types).sort((a,b)=>b[1]-a[1]);
   if(!actEntries.length){acts.innerHTML='<div class="empty">No actions yet</div>';}
-  else{const mx=actEntries[0][1];acts.innerHTML=actEntries.map(([l,c])=>`<div class="bar-row"><span class="label">${l}</span><div class="bar bar-action" style="width:${(c/mx)*180}px">${c}</div></div>`).join('');}
+  else{const mx=actEntries[0][1];acts.innerHTML=actEntries.map(([l,c])=>`<div class="bar-row"><span class="label">${E(l)}</span><div class="bar bar-action" style="width:${(c/mx)*180}px">${c}</div></div>`).join('');}
 
   // Project issues
   const pi=document.getElementById('project-issues');
   if(!D.project_issues.length){pi.innerHTML='<div class="empty">No data</div>';}
-  else{const mx=D.project_issues[0][1]||1;pi.innerHTML=D.project_issues.map(([p,c])=>`<div class="bar-row"><span class="label">${p}</span><div class="bar bar-project" style="width:${(c/mx)*180}px">${c}</div></div>`).join('');}
+  else{const mx=D.project_issues[0][1]||1;pi.innerHTML=D.project_issues.map(([p,c])=>`<div class="bar-row"><span class="label">${E(p)}</span><div class="bar bar-project" style="width:${(c/mx)*180}px">${c}</div></div>`).join('');}
 
   // Scatter
   const sc=document.getElementById('scatter');
@@ -627,7 +633,7 @@ function render(){
     sc.innerHTML+=dots.map(d=>{
       const x=(d.size/maxX)*95;
       const y=(d.issues/maxY)*90;
-      return`<div class="scatter-dot" style="left:${x}%;bottom:${y}%" data-tip="${d.date} ${d.project}: ${d.size} interactions, ${d.issues} issues"></div>`;
+      return`<div class="scatter-dot" style="left:${x}%;bottom:${y}%" data-tip="${E(d.date)} ${E(d.project)}: ${d.size} interactions, ${d.issues} issues"></div>`;
     }).join('');
   }
 
@@ -648,14 +654,14 @@ function render(){
     let mxH=0;heatmap.rows.forEach(r=>r.values.forEach(v=>{if(v>mxH)mxH=v;}));
     let html=`<div class="heatmap">`;
     heatmap.rows.forEach(row=>{
-      html+=`<div class="heatmap-row" style="grid-template-columns:${cols}"><div class="heatmap-label">${row.category}</div>`;
+      html+=`<div class="heatmap-row" style="grid-template-columns:${cols}"><div class="heatmap-label">${E(row.category)}</div>`;
       row.values.forEach((v,i)=>{
-        html+=`<div class="heatmap-cell" style="background:${heatColor(v,mxH)}" data-tip="${row.category} @ ${heatmap.weeks[i]}: ${v}件"></div>`;
+        html+=`<div class="heatmap-cell" style="background:${heatColor(v,mxH)}" data-tip="${E(row.category)} @ ${E(heatmap.weeks[i])}: ${v}件"></div>`;
       });
       html+=`</div>`;
     });
     html+=`<div class="heatmap-week-labels" style="grid-template-columns:${cols}"><div></div>`;
-    heatmap.weeks.forEach(w=>{html+=`<div style="text-align:center">${w.slice(-3)}</div>`;});
+    heatmap.weeks.forEach(w=>{html+=`<div style="text-align:center">${E(w.slice(-3))}</div>`;});
     html+=`</div></div>`;
     chm.innerHTML=html;
   }
@@ -688,11 +694,11 @@ function render(){
   else{
     const cols={in_progress:[],success:[],fail:[],continue:[]};
     D.experiments.forEach((e,i)=>{e.__idx=i;(cols[e.status]||cols.in_progress).push(e);});
-    const renderCard=e=>`<div class="kanban-card ${e.status}" onclick="showModal(window.__contents.experiments[${e.__idx}])">
-      <div class="kanban-title">${e.id}: ${e.title}</div>
-      <div class="kanban-meta">${e.week} · ${e.scope||''}</div>
-      ${e.hypothesis?`<div class="kanban-field">💡 ${e.hypothesis}</div>`:''}
-      ${e.success_criteria?`<div class="kanban-field">🎯 ${e.success_criteria}</div>`:''}
+    const renderCard=e=>`<div class="kanban-card ${E(e.status)}" onclick="showModal(window.__contents.experiments[${e.__idx}])">
+      <div class="kanban-title">${E(e.id)}: ${E(e.title)}</div>
+      <div class="kanban-meta">${E(e.week)} · ${E(e.scope||'')}</div>
+      ${e.hypothesis?`<div class="kanban-field">💡 ${E(e.hypothesis)}</div>`:''}
+      ${e.success_criteria?`<div class="kanban-field">🎯 ${E(e.success_criteria)}</div>`:''}
     </div>`;
     kb.innerHTML=`
       <div class="kanban-col"><h3 style="color:#38bdf8">🧪 In Progress (${cols.in_progress.length})</h3>${cols.in_progress.map(renderCard).join('')||'<div class="empty" style="padding:10px">—</div>'}</div>
@@ -706,10 +712,10 @@ function render(){
   if(!D.tries.length){tl.innerHTML='<div class="empty">No tries yet. Run `/weekly-kpt` to generate KPT.</div>';}
   else{
     tl.innerHTML=D.tries.slice().reverse().map(t=>`<div class="try-row">
-      <span class="try-id">${t.id}</span>
-      <span class="try-title">${t.title}</span>
-      <span class="try-week">${t.week}</span>
-      <span class="try-status ${t.implemented?'done':'pending'}">${t.implemented?'✅ '+t.impl_date:'pending'}</span>
+      <span class="try-id">${E(t.id)}</span>
+      <span class="try-title">${E(t.title)}</span>
+      <span class="try-week">${E(t.week)}</span>
+      <span class="try-status ${t.implemented?'done':'pending'}">${t.implemented?'✅ '+E(t.impl_date):'pending'}</span>
     </div>`).join('');
   }
 
@@ -718,19 +724,19 @@ function render(){
   if(!D.reviews.length){rl.innerHTML='<div class="empty">No self-reviews yet. Complete a session to generate one.</div>';}
   else{rl.innerHTML=D.reviews.slice().reverse().map((r,i)=>{
     const idx=D.reviews.length-1-i;
-    if(r.error)return`<div class="entry">${r.file}: ${r.error}</div>`;
+    if(r.error)return`<div class="entry">${E(r.file)}: ${E(r.error)}</div>`;
     const badge=r.issue_count>0?`<span class="entry-badge-issue">${r.issue_count} issues</span>`:`<span class="entry-badge-clean">clean</span>`;
     return`<div class="entry" onclick="showModal(window.__contents.reviews[${idx}])">
-      <span class="entry-date">${r.date} ${r.time.replace(/(\\d{2})(\\d{2})(\\d{2})/,"$1:$2:$3")}</span>
-      <span class="entry-project">${r.project}</span>${badge}
-      <div class="entry-summary">${r.summary}</div></div>`;}).join('');}
+      <span class="entry-date">${E(r.date)} ${E(r.time.replace(/(\\d{2})(\\d{2})(\\d{2})/,"$1:$2:$3"))}</span>
+      <span class="entry-project">${E(r.project)}</span>${badge}
+      <div class="entry-summary">${E(r.summary)}</div></div>`;}).join('');}
 
   // KPTs
   const kl=document.getElementById('kpt-list');
   if(!D.kpts.length){kl.innerHTML='<div class="empty">No KPT reports yet. Run /weekly-kpt to generate one.</div>';}
   else{kl.innerHTML=D.kpts.slice().reverse().map((k,i)=>{
     const idx=D.kpts.length-1-i;
-    return`<div class="entry" onclick="showModal(window.__contents.kpts[${idx}])"><span class="entry-date">${k.file}</span></div>`;}).join('');}
+    return`<div class="entry" onclick="showModal(window.__contents.kpts[${idx}])"><span class="entry-date">${E(k.file)}</span></div>`;}).join('');}
 }
 load();
 </script>
