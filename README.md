@@ -177,6 +177,14 @@ sleep 15 && ls -la ~/.claude/kpt-data/session-reviews/
 
 - Stop hook の activity-log はローカルファイルに JSONL を追記するだけで、API 呼び出しを一切行わない。
 
+## Privacy & Security
+
+会話に誤って貼り付けた API キー / トークンをディスク書き込みと Anthropic API 送信の**前段**で自動 redaction する。対応パターンは Anthropic / OpenAI / GitHub / AWS / Google / Stripe / Slack / JWT / PRIVATE KEY ブロック / `password=...` 形式の代入。詳細は `.claude/hooks/kpt-redact.sh` 冒頭コメントを参照。
+
+redaction が失敗した場合は fail-closed — 未 redact データを送信せず、マーカー（`[REDACTION_FAILED]` / `ABORTED`）を残して後から検知可能にする。
+
+既知パターンの第一層防御にすぎず、独自形式のキーや短い認証情報は捉えられない。**フルディスク暗号化 (FileVault / BitLocker / LUKS) の併用を強く推奨する**。
+
 ## Cost Tracking
 
 推測値ではなく**実測値**で管理する。SessionEnd hook は `claude -p --output-format json` で Haiku を呼び、応答 JSON の `usage` / `total_cost_usd` / `duration_ms` を `~/.claude/kpt-data/cost-logs/cost_YYYY-MM.jsonl` に記録する。

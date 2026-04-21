@@ -38,8 +38,10 @@ mkdir -p "$CLAUDE_DIR/kpt-data/cost-logs"
 echo "[2/6] Installing hooks..."
 cp "$SCRIPT_DIR/.claude/hooks/kpt-activity-log.sh" "$CLAUDE_DIR/hooks/"
 cp "$SCRIPT_DIR/.claude/hooks/kpt-session-analyze.sh" "$CLAUDE_DIR/hooks/"
+cp "$SCRIPT_DIR/.claude/hooks/kpt-redact.sh" "$CLAUDE_DIR/hooks/"
 chmod +x "$CLAUDE_DIR/hooks/kpt-activity-log.sh"
 chmod +x "$CLAUDE_DIR/hooks/kpt-session-analyze.sh"
+chmod +x "$CLAUDE_DIR/hooks/kpt-redact.sh"
 
 # 3. Skills
 echo "[3/6] Installing skills..."
