@@ -20,10 +20,13 @@ sed -E '
   }
 ' | sed -E \
     -e 's/sk-ant-[A-Za-z0-9_-]{20,}/[REDACTED_ANTHROPIC_KEY]/g' \
+    -e 's/sk-proj-[A-Za-z0-9_-]{20,}/[REDACTED_OPENAI_KEY]/g' \
     -e 's/github_pat_[A-Za-z0-9_]{50,}/[REDACTED_GITHUB_TOKEN]/g' \
-    -e 's/ghp_[A-Za-z0-9]{36,}/[REDACTED_GITHUB_TOKEN]/g' \
-    -e 's/AKIA[0-9A-Z]{16}/[REDACTED_AWS_ACCESS_KEY]/g' \
+    -e 's/gh[pousr]_[A-Za-z0-9]{36,}/[REDACTED_GITHUB_TOKEN]/g' \
+    -e 's/(AKIA|ASIA)[0-9A-Z]{16}/[REDACTED_AWS_ACCESS_KEY]/g' \
+    -e 's/AIza[0-9A-Za-z_-]{35,}/[REDACTED_GOOGLE_API_KEY]/g' \
+    -e 's/(sk|pk|rk)_(live|test)_[0-9a-zA-Z]{24,}/[REDACTED_STRIPE_KEY]/g' \
     -e 's/eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/[REDACTED_JWT]/g' \
-    -e 's/xox[baprs]-[A-Za-z0-9-]+/[REDACTED_SLACK_TOKEN]/g' \
+    -e 's/xox[baprs]-[A-Za-z0-9-]{10,200}/[REDACTED_SLACK_TOKEN]/g' \
     -e 's/(password|secret|api[-_]?key|token)[[:space:]]*[:=][[:space:]]*"[^"]{8,}"/\1=[REDACTED]/gI' \
   | sed -E "s/(password|secret|api[-_]?key|token)[[:space:]]*[:=][[:space:]]*'[^']{8,}'/\1=[REDACTED]/gI"

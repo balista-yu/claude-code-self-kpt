@@ -72,12 +72,27 @@ INPUT=$(cat)
     end
   ' "$TRANSCRIPT_PATH" 2>/dev/null > "$PROMPT_FILE"
 
-  # Anthropic API に送信する前に既知の機密パターンを [REDACTED_*] に置換
+  # Anthropic API に送信する前に既知の機密パターンを [REDACTED_*] に置換。
+  # redaction が失敗した場合は fail-closed: 未 redact のまま送信するのを避け、
+  # セッション分析そのものを中止する。hook は background 実行で stderr が捨てられるため、
+  # 気付けるように OUTPUT_FILE にエラーマーカーを書き、ダッシュボード側で検知させる。
+  REDACT_SH="$(dirname "$0")/kpt-redact.sh"
   REDACTED_TMP=$(mktemp)
-  if bash "$(dirname "$0")/kpt-redact.sh" < "$PROMPT_FILE" > "$REDACTED_TMP" 2>/dev/null; then
+  if [ -x "$REDACT_SH" ] && bash "$REDACT_SH" < "$PROMPT_FILE" > "$REDACTED_TMP" 2>/dev/null; then
     mv "$REDACTED_TMP" "$PROMPT_FILE"
   else
-    rm -f "$REDACTED_TMP"
+    rm -f "$REDACTED_TMP" "$PROMPT_FILE" "$ANALYSIS_PROMPT"
+    {
+      echo "# 自己分析: ${PROJECT_NAME} (${TODAY}) — ABORTED"
+      echo ""
+      echo "## 中止理由"
+      echo "\`kpt-redact.sh\` の実行に失敗したため、transcript の Anthropic API 送信を fail-closed で中止しました。"
+      echo ""
+      echo "- Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+      echo "- Session: ${SESSION_ID}"
+      echo "- 再現: \`bash ~/.claude/hooks/kpt-redact.sh < /some/input\`"
+    } > "$OUTPUT_FILE"
+    exit 0
   fi
 
   cat > "$ANALYSIS_PROMPT" << PROMPT_END
