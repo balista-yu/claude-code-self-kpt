@@ -15,8 +15,9 @@ INPUT=$(cat)
 
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"')
 CWD=$(echo "$INPUT" | jq -r '.cwd // "unknown"')
-# アシスタントの応答を500文字に切り詰め
-ASSISTANT_MSG=$(echo "$INPUT" | jq -r '.last_assistant_message // ""' | head -c 500)
+# アシスタントの応答を redaction → 500文字切り詰め
+ASSISTANT_MSG=$(echo "$INPUT" | jq -r '.last_assistant_message // ""' \
+  | bash "$(dirname "$0")/kpt-redact.sh" | head -c 500)
 
 # stop_hook_active なら無限ループ防止
 STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // "false"')

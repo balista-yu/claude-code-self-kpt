@@ -72,6 +72,14 @@ INPUT=$(cat)
     end
   ' "$TRANSCRIPT_PATH" 2>/dev/null > "$PROMPT_FILE"
 
+  # Anthropic API に送信する前に既知の機密パターンを [REDACTED_*] に置換
+  REDACTED_TMP=$(mktemp)
+  if bash "$(dirname "$0")/kpt-redact.sh" < "$PROMPT_FILE" > "$REDACTED_TMP" 2>/dev/null; then
+    mv "$REDACTED_TMP" "$PROMPT_FILE"
+  else
+    rm -f "$REDACTED_TMP"
+  fi
+
   cat > "$ANALYSIS_PROMPT" << PROMPT_END
 あなたはClaude Codeの自己分析AIです。
 以下はClaude Codeのセッションログです。**Claude Code自身の視点**で振り返り、自分が何を間違えたか、何を改善すべきかを分析してください。

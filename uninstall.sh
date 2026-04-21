@@ -68,6 +68,7 @@ fi
 echo "[2/6] Removing hooks ..."
 rm -f "$CLAUDE_DIR/hooks/kpt-activity-log.sh"
 rm -f "$CLAUDE_DIR/hooks/kpt-session-analyze.sh"
+rm -f "$CLAUDE_DIR/hooks/kpt-redact.sh"
 
 # 3. Skills
 echo "[3/6] Removing skills ..."

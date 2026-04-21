@@ -177,6 +177,43 @@ sleep 15 && ls -la ~/.claude/kpt-data/session-reviews/
 
 - Stop hook の activity-log はローカルファイルに JSONL を追記するだけで、API 呼び出しを一切行わない。
 
+## Privacy & Security
+
+会話には API キー / トークン等を誤って貼り付けるリスクが付きまとう。本システムはディスク書き込みおよび Anthropic API 送信の**前段**で自動 redaction をかける。
+
+### 自動 redaction
+
+`.claude/hooks/kpt-redact.sh` が stdin → stdout フィルタとして以下を置換する：
+
+| パターン | 置換先 |
+| --- | --- |
+| `sk-ant-...` | `[REDACTED_ANTHROPIC_KEY]` |
+| `ghp_...` / `github_pat_...` | `[REDACTED_GITHUB_TOKEN]` |
+| `AKIA[0-9A-Z]{16}` | `[REDACTED_AWS_ACCESS_KEY]` |
+| `-----BEGIN ... PRIVATE KEY-----` ブロック（複数行） | `[REDACTED_PRIVATE_KEY]` |
+| `eyJ....eyJ....<sig>` (JWT) | `[REDACTED_JWT]` |
+| `xox[baprs]-...` (Slack) | `[REDACTED_SLACK_TOKEN]` |
+| `(password\|secret\|api[_-]?key\|token) = "..."` (8+文字、大小区別なし) | `<key>=[REDACTED]` |
+
+適用箇所：
+
+- **Stop hook (`kpt-activity-log.sh`)** — `last_assistant_message` を redact → 500 文字切り詰めして JSONL に追記
+- **SessionEnd hook (`kpt-session-analyze.sh`)** — transcript 抽出後、Anthropic API に送信する**前**に redact
+
+### フルディスク暗号化の推奨
+
+redaction は既知パターンの第一層防御であり、パターン外の機密（独自形式の API キー等）は捉えられない。セッションログや KPT 全文はローカルディスクに残るため、**フルディスク暗号化 (FDE) の有効化を強く推奨する**：
+
+- **macOS**: FileVault
+- **Windows**: BitLocker
+- **Linux**: LUKS
+
+### スコープ外（別 issue 予定）
+
+- ファイル単位暗号化（gpg / age）
+- プロジェクト単位の allowlist / denylist
+- SessionEnd hook のオフスイッチ（現状は `settings.json` の手動編集で代替可能）
+
 ## Cost Tracking
 
 推測値ではなく**実測値**で管理する。SessionEnd hook は `claude -p --output-format json` で Haiku を呼び、応答 JSON の `usage` / `total_cost_usd` / `duration_ms` を `~/.claude/kpt-data/cost-logs/cost_YYYY-MM.jsonl` に記録する。
