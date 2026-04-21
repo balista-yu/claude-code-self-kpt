@@ -179,79 +179,11 @@ sleep 15 && ls -la ~/.claude/kpt-data/session-reviews/
 
 ## Privacy & Security
 
-会話には API キー / トークン等を誤って貼り付けるリスクが付きまとう。本システムはディスク書き込みおよび Anthropic API 送信の**前段**で自動 redaction をかける。
+会話に誤って貼り付けた API キー / トークンをディスク書き込みと Anthropic API 送信の**前段**で自動 redaction する。対応パターンは Anthropic / OpenAI / GitHub / AWS / Google / Stripe / Slack / JWT / PRIVATE KEY ブロック / `password=...` 形式の代入。詳細は `.claude/hooks/kpt-redact.sh` 冒頭コメントを参照。
 
-### 自動 redaction
+redaction が失敗した場合は fail-closed — 未 redact データを送信せず、マーカー（`[REDACTION_FAILED]` / `ABORTED`）を残して後から検知可能にする。
 
-`.claude/hooks/kpt-redact.sh` が stdin → stdout フィルタとして以下を置換する：
-
-| パターン | 置換先 |
-| --- | --- |
-| `sk-ant-...` | `[REDACTED_ANTHROPIC_KEY]` |
-| `sk-proj-...` (OpenAI project key) | `[REDACTED_OPENAI_KEY]` |
-| `ghp_` / `gho_` / `ghu_` / `ghs_` / `ghr_` / `github_pat_` | `[REDACTED_GITHUB_TOKEN]` |
-| `AKIA[0-9A-Z]{16}` / `ASIA...` (AWS IAM / STS) | `[REDACTED_AWS_ACCESS_KEY]` |
-| `AIza[0-9A-Za-z_-]{35,}` (Google API) | `[REDACTED_GOOGLE_API_KEY]` |
-| `sk_live_` / `sk_test_` / `pk_live_` / `pk_test_` / `rk_...` (Stripe) | `[REDACTED_STRIPE_KEY]` |
-| `-----BEGIN ... PRIVATE KEY-----` ブロック（複数行） | `[REDACTED_PRIVATE_KEY]` |
-| `eyJ....eyJ....<sig>` (JWT) | `[REDACTED_JWT]` |
-| `xox[baprs]-...` (Slack, 10–200 文字) | `[REDACTED_SLACK_TOKEN]` |
-| `(password\|secret\|api[_-]?key\|token) = "..."` (8+文字、大小区別なし) | `<key>=[REDACTED]` |
-
-適用箇所：
-
-- **Stop hook (`kpt-activity-log.sh`)** — `last_assistant_message` を redact → 500 文字切り詰めして JSONL に追記
-- **SessionEnd hook (`kpt-session-analyze.sh`)** — transcript 抽出後、Anthropic API に送信する**前**に redact
-
-### fail-closed 動作
-
-redaction スクリプトが欠落 / エラーで失敗した場合、**未 redact データを露出させないこと**を優先する：
-
-- **Stop hook** — `message` フィールドを `[REDACTION_FAILED]` マーカーで JSONL に追記
-- **SessionEnd hook** — API 送信を中止し、session-reviews に `ABORTED` マーカー付き自己分析ファイルを書き出す（ダッシュボード Self-Reviews タブで検知可能）
-
-### 副作用と制約
-
-- **over-redact 優先の設計**: 誤検知（例えば本文中の `secret = "something"` が `secret=[REDACTED]` になる）は許容する。under-redact で機密を漏らすよりマシという判断
-- **カバー範囲は既知パターンのみ**: 独自形式の API キー、社内トークン、短い認証情報（< 8 文字）は捉えられない。網羅的な DLP にはならない
-- **sed の case-insensitive (`gI`) フラグは GNU 拡張**: macOS Sonoma 以降は動作する。古い BSD sed では代入パターンの大文字マッチが効かない可能性あり
-- **session-review の分析品質**: transcript の一部が `[REDACTED_*]` に置換されるため、Haiku が返す分析文の文脈解釈が若干劣化する可能性
-
-### 無効化したい場合
-
-デバッグ等で redaction を外したい場合：
-
-```bash
-# 恒久的に無効化（バックアップを取りつつ cat で通す空フィルタに置き換え）
-cp ~/.claude/hooks/kpt-redact.sh ~/.claude/hooks/kpt-redact.sh.bak
-cat > ~/.claude/hooks/kpt-redact.sh <<'EOF'
-#!/bin/bash
-exec cat
-EOF
-chmod +x ~/.claude/hooks/kpt-redact.sh
-```
-
-復旧は `mv ~/.claude/hooks/kpt-redact.sh.bak ~/.claude/hooks/kpt-redact.sh`。
-
-### テスト
-
-```bash
-bash test/test-redact.sh   # 27 パターンのフィクスチャテスト
-```
-
-### フルディスク暗号化の推奨
-
-redaction は既知パターンの第一層防御であり、パターン外の機密（独自形式の API キー等）は捉えられない。セッションログや KPT 全文はローカルディスクに残るため、**フルディスク暗号化 (FDE) の有効化を強く推奨する**：
-
-- **macOS**: FileVault
-- **Windows**: BitLocker
-- **Linux**: LUKS
-
-### スコープ外（別 issue 予定）
-
-- ファイル単位暗号化（gpg / age）
-- プロジェクト単位の allowlist / denylist
-- SessionEnd hook のオフスイッチ（現状は `settings.json` の手動編集で代替可能）
+既知パターンの第一層防御にすぎず、独自形式のキーや短い認証情報は捉えられない。**フルディスク暗号化 (FileVault / BitLocker / LUKS) の併用を強く推奨する**。
 
 ## Cost Tracking
 
