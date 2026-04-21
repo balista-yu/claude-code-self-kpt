@@ -22,6 +22,7 @@ mkdir -p "$CLAUDE_DIR/kpt-data/activity-logs"
 mkdir -p "$CLAUDE_DIR/kpt-data/session-reviews"
 mkdir -p "$CLAUDE_DIR/kpt-data/kpt"
 mkdir -p "$CLAUDE_DIR/kpt-data/experiments"
+mkdir -p "$CLAUDE_DIR/kpt-data/cost-logs"
 
 # 2. Hooks
 echo "[2/6] Installing hooks..."

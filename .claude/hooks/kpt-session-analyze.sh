@@ -116,10 +116,41 @@ PROMPT_END
   cat "$ANALYSIS_PROMPT" "$PROMPT_FILE" > "${PROMPT_FILE}.combined"
 
   export CLAUDE_SESSION_ANALYSIS=1
-  claude -p --model haiku --no-session-persistence \
-    < "${PROMPT_FILE}.combined" > "$OUTPUT_FILE" 2>/dev/null
+  JSON_OUTPUT=$(mktemp)
+  claude -p --model haiku --output-format json --no-session-persistence \
+    < "${PROMPT_FILE}.combined" > "$JSON_OUTPUT" 2>/dev/null
 
-  rm -f "$PROMPT_FILE" "$ANALYSIS_PROMPT" "${PROMPT_FILE}.combined"
+  # JSON なら .result を分析本文として書き出し、usage を cost-logs に追記
+  if jq -e '.result' "$JSON_OUTPUT" > /dev/null 2>&1; then
+    jq -r '.result' "$JSON_OUTPUT" > "$OUTPUT_FILE"
+
+    COST_DIR="$HOME/.claude/kpt-data/cost-logs"
+    mkdir -p "$COST_DIR"
+    COST_FILE="${COST_DIR}/cost_${YEAR_MONTH}.jsonl"
+    jq -c \
+      --arg ts "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+      --arg date "$(date +"%Y-%m-%d")" \
+      --arg sid "$SESSION_ID" \
+      --arg project "$PROJECT_NAME" \
+      '{
+        timestamp: $ts,
+        local_date: $date,
+        session_id: $sid,
+        project: $project,
+        model: (.modelUsage // {} | keys | .[0] // "unknown"),
+        input_tokens: (.usage.input_tokens // 0),
+        output_tokens: (.usage.output_tokens // 0),
+        cache_read_input_tokens: (.usage.cache_read_input_tokens // 0),
+        cache_creation_input_tokens: (.usage.cache_creation_input_tokens // 0),
+        cost_usd: (.total_cost_usd // 0),
+        duration_ms: (.duration_ms // 0)
+      }' "$JSON_OUTPUT" >> "$COST_FILE"
+  else
+    # JSON パース失敗時は raw を残してフォールバック
+    cp "$JSON_OUTPUT" "$OUTPUT_FILE"
+  fi
+
+  rm -f "$PROMPT_FILE" "$ANALYSIS_PROMPT" "${PROMPT_FILE}.combined" "$JSON_OUTPUT"
 
 ) </dev/null &>/dev/null &
 disown
