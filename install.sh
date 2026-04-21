@@ -11,6 +11,16 @@ CLAUDE_DIR="$HOME/.claude"
 echo "=== Claude Code Self-Improvement KPT ==="
 echo ""
 
+# 0. バックアップ（既存 settings.json / CLAUDE.md を変更する前に退避）
+if [ -f "$CLAUDE_DIR/settings.json" ] || [ -f "$CLAUDE_DIR/CLAUDE.md" ]; then
+  TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
+  BACKUP_DIR="$CLAUDE_DIR/backup-$TIMESTAMP"
+  echo "[0/6] Backing up existing config to $BACKUP_DIR ..."
+  mkdir -p "$BACKUP_DIR"
+  [ -f "$CLAUDE_DIR/settings.json" ] && cp "$CLAUDE_DIR/settings.json" "$BACKUP_DIR/settings.json"
+  [ -f "$CLAUDE_DIR/CLAUDE.md" ] && cp "$CLAUDE_DIR/CLAUDE.md" "$BACKUP_DIR/CLAUDE.md"
+fi
+
 # 1. ディレクトリ
 echo "[1/6] Creating directories..."
 mkdir -p "$CLAUDE_DIR/hooks"

@@ -57,10 +57,28 @@ chmod +x install.sh
 ```
 
 これだけ。インストーラーが以下を自動でやります
+- 既存の `settings.json` / `CLAUDE.md` を `~/.claude/backup-YYYYMMDD-HHMMSS/` に退避
 - `~/.claude/hooks/` にSessionEnd hookを配置
 - `~/.claude/skills/` にKPTスキルを配置
 - `~/.claude/settings.json` にhook設定をマージ（既存設定があれば安全にマージ）
 - `~/.claude/CLAUDE.md` にKPT運用ルールを追記
+
+### アンインストール
+
+```bash
+./uninstall.sh                 # 設定とファイルを削除、kpt-data は残す
+./uninstall.sh --purge-data    # データも含めて全削除
+```
+
+`uninstall.sh` は以下を実施する:
+
+- `~/.claude/backup-YYYYMMDD-HHMMSS/` に `settings.json` / `CLAUDE.md` を退避
+- `settings.json` から **KPT 関連 hook エントリのみ** を `jq` で除去（他の Stop / SessionEnd hook は保持）
+- `~/.claude/hooks/kpt-*.sh` を削除
+- `~/.claude/skills/{weekly-kpt,apply-kpt,forward-kpt}/` を削除
+- `~/.claude/scripts/kpt-viewer.py` を削除
+- `~/.claude/CLAUDE.md` から自己改善システムブロックを除去（他セクションは保持）
+- **データディレクトリ `~/.claude/kpt-data/` はデフォルト残す**（`--purge-data` 指定時のみ削除）
 
 ### 依存ツール
 
