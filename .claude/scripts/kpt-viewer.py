@@ -22,6 +22,7 @@ ACTIVITY_DIR = os.path.join(KPT_DATA, "activity-logs")
 REVIEWS_DIR = os.path.join(KPT_DATA, "session-reviews")
 KPT_DIR = os.path.join(KPT_DATA, "kpt")
 EXPERIMENTS_DIR = os.path.join(KPT_DATA, "experiments")
+COST_LOGS_DIR = os.path.join(KPT_DATA, "cost-logs")
 
 
 def load_activity_stats():
@@ -78,6 +79,65 @@ def load_activity_stats():
         p["days"] = len(p["days"])
 
     return stats
+
+
+def load_cost_stats():
+    """SessionEnd hook の Haiku 呼び出しコストを月次/直近セッション単位で集計。"""
+    monthly = {}  # "YYYY-MM" -> {input, output, cache_read, cache_creation, cost_usd, sessions}
+    sessions = []  # 直近セッション（最大 50 件）
+
+    for f in sorted(glob.glob(os.path.join(COST_LOGS_DIR, "cost_*.jsonl"))):
+        month = os.path.basename(f).replace("cost_", "").replace(".jsonl", "")
+        if month not in monthly:
+            monthly[month] = {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "cache_read_input_tokens": 0,
+                "cache_creation_input_tokens": 0,
+                "cost_usd": 0.0,
+                "sessions": 0,
+            }
+        try:
+            with open(f, "r") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        entry = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    m = monthly[month]
+                    m["input_tokens"] += int(entry.get("input_tokens", 0) or 0)
+                    m["output_tokens"] += int(entry.get("output_tokens", 0) or 0)
+                    m["cache_read_input_tokens"] += int(entry.get("cache_read_input_tokens", 0) or 0)
+                    m["cache_creation_input_tokens"] += int(entry.get("cache_creation_input_tokens", 0) or 0)
+                    m["cost_usd"] += float(entry.get("cost_usd", 0) or 0)
+                    m["sessions"] += 1
+                    sessions.append(entry)
+        except Exception:
+            continue
+
+    # 直近セッション（timestamp 降順 / 最大 50 件）
+    sessions.sort(key=lambda e: e.get("timestamp", ""), reverse=True)
+    sessions = sessions[:50]
+
+    # 月次を月降順でリスト化
+    monthly_list = [
+        {"month": k, **v, "cost_usd": round(v["cost_usd"], 4)}
+        for k, v in sorted(monthly.items(), reverse=True)
+    ]
+
+    totals = {
+        "input_tokens": sum(m["input_tokens"] for m in monthly.values()),
+        "output_tokens": sum(m["output_tokens"] for m in monthly.values()),
+        "cache_read_input_tokens": sum(m["cache_read_input_tokens"] for m in monthly.values()),
+        "cache_creation_input_tokens": sum(m["cache_creation_input_tokens"] for m in monthly.values()),
+        "cost_usd": round(sum(m["cost_usd"] for m in monthly.values()), 4),
+        "sessions": sum(m["sessions"] for m in monthly.values()),
+    }
+
+    return {"monthly": monthly_list, "recent": sessions, "totals": totals}
 
 
 def parse_review(filepath):
@@ -381,6 +441,7 @@ def get_dashboard_data():
     burning = detect_burning_categories(reviews)
     project_issues = project_issue_distribution(reviews)
     quality_scatter = session_quality_scatter(reviews, activity)
+    costs = load_cost_stats()
 
     # hour_weekday は JSON化のため dict に
     hw = activity.pop("hour_weekday", [[0] * 24 for _ in range(7)])
@@ -401,6 +462,7 @@ def get_dashboard_data():
         "action_types": action_types,
         "total_reviews": total_reviews,
         "clean_rate": round(clean_reviews / total_reviews * 100, 1) if total_reviews else 0,
+        "costs": costs,
     }
 
 
@@ -517,6 +579,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     <button class="tab" onclick="showTab('heatmaps',this)">Heatmaps</button>
     <button class="tab" onclick="showTab('experiments',this)">Experiments</button>
     <button class="tab" onclick="showTab('tries',this)">Tries</button>
+    <button class="tab" onclick="showTab('costs',this)">Costs</button>
     <button class="tab" onclick="showTab('reviews',this)">Self-Reviews</button>
     <button class="tab" onclick="showTab('kpts',this)">KPT Archive</button>
   </div>
@@ -562,6 +625,22 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     </div>
   </div>
 
+  <div id="costs" style="display:none">
+    <div class="section">
+      <h2>Haiku Cost Tracking</h2>
+      <div class="subtitle" style="margin-bottom:16px;">SessionEnd hook が Haiku を呼び出した実測コスト（Anthropic API 課金プランのみ）。Pro/Max 定額プランではローカル計測値であり実課金ではない。</div>
+      <div class="stats-grid" id="cost-totals"></div>
+    </div>
+    <div class="section">
+      <h2>Monthly Breakdown</h2>
+      <div id="cost-monthly"></div>
+    </div>
+    <div class="section">
+      <h2>Recent Sessions (last 50)</h2>
+      <div id="cost-recent"></div>
+    </div>
+  </div>
+
   <div id="reviews" style="display:none">
     <div class="section"><h2>Session Self-Reviews</h2><div id="review-list"></div></div>
   </div>
@@ -582,7 +661,7 @@ async function load(){D=await(await fetch('/api/data')).json();render();}
 function showTab(n,el){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
-  ['overview','heatmaps','experiments','tries','reviews','kpts'].forEach(id=>{document.getElementById(id).style.display=id===n?'block':'none';});
+  ['overview','heatmaps','experiments','tries','costs','reviews','kpts'].forEach(id=>{document.getElementById(id).style.display=id===n?'block':'none';});
 }
 function showModal(c){document.getElementById('modal-body').innerHTML=marked.parse(c);document.getElementById('modal').style.display='block';}
 function heatColor(v,mx){if(!mx||!v)return'#1e293b';const r=v/mx;const h=220-(r*220);return`hsl(${h},70%,${35+r*20}%)`;}
@@ -716,6 +795,44 @@ function render(){
       <span class="try-title">${E(t.title)}</span>
       <span class="try-week">${E(t.week)}</span>
       <span class="try-status ${t.implemented?'done':'pending'}">${t.implemented?'✅ '+E(t.impl_date):'pending'}</span>
+    </div>`).join('');
+  }
+
+  // Costs
+  const c=D.costs||{totals:{},monthly:[],recent:[]};
+  const fmtNum=n=>(n||0).toLocaleString();
+  const fmtUsd=n=>'$'+(n||0).toFixed(4);
+  document.getElementById('cost-totals').innerHTML=`
+    <div class="stat-card"><div class="stat-value">${fmtUsd(c.totals.cost_usd)}</div><div class="stat-label">Total Cost</div></div>
+    <div class="stat-card"><div class="stat-value">${fmtNum(c.totals.sessions)}</div><div class="stat-label">Hook Invocations</div></div>
+    <div class="stat-card"><div class="stat-value">${fmtNum(c.totals.input_tokens)}</div><div class="stat-label">Input Tokens</div></div>
+    <div class="stat-card"><div class="stat-value">${fmtNum(c.totals.output_tokens)}</div><div class="stat-label">Output Tokens</div></div>
+    <div class="stat-card"><div class="stat-value">${fmtNum(c.totals.cache_read_input_tokens)}</div><div class="stat-label">Cache Read</div></div>
+    <div class="stat-card"><div class="stat-value">${fmtNum(c.totals.cache_creation_input_tokens)}</div><div class="stat-label">Cache Creation</div></div>`;
+  const cm=document.getElementById('cost-monthly');
+  if(!c.monthly.length){cm.innerHTML='<div class="empty">No cost data yet. SessionEnd hook が初回 Haiku 呼び出し以降に蓄積される。</div>';}
+  else{
+    cm.innerHTML=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+      <thead><tr style="color:#94a3b8;text-align:left;border-bottom:1px solid #334155">
+        <th style="padding:8px 6px">Month</th><th style="padding:8px 6px">Sessions</th>
+        <th style="padding:8px 6px">Input</th><th style="padding:8px 6px">Output</th>
+        <th style="padding:8px 6px">Cache R/W</th><th style="padding:8px 6px">Cost</th>
+      </tr></thead><tbody>${c.monthly.map(m=>`<tr style="border-bottom:1px solid #334155">
+        <td style="padding:8px 6px"><strong>${E(m.month)}</strong></td>
+        <td style="padding:8px 6px">${fmtNum(m.sessions)}</td>
+        <td style="padding:8px 6px">${fmtNum(m.input_tokens)}</td>
+        <td style="padding:8px 6px">${fmtNum(m.output_tokens)}</td>
+        <td style="padding:8px 6px">${fmtNum(m.cache_read_input_tokens)} / ${fmtNum(m.cache_creation_input_tokens)}</td>
+        <td style="padding:8px 6px;color:#38bdf8">${fmtUsd(m.cost_usd)}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+  }
+  const cr=document.getElementById('cost-recent');
+  if(!c.recent.length){cr.innerHTML='<div class="empty">No sessions logged yet.</div>';}
+  else{
+    cr.innerHTML=c.recent.map(s=>`<div class="entry">
+      <span class="entry-date">${E((s.timestamp||'').replace('T',' ').replace('Z',''))}</span>
+      <span class="entry-project">${E(s.project||'unknown')}</span>
+      <div class="entry-summary">in ${fmtNum(s.input_tokens)} / out ${fmtNum(s.output_tokens)} / cache ${fmtNum(s.cache_read_input_tokens)}+${fmtNum(s.cache_creation_input_tokens)} · ${fmtUsd(s.cost_usd)} · ${s.duration_ms||0}ms</div>
     </div>`).join('');
   }
 

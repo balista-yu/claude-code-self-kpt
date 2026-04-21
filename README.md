@@ -102,6 +102,7 @@ python3 ~/.claude/scripts/kpt-viewer.py
 - **Heatmaps**: カテゴリ×週ヒートマップ、曜日×時間帯ヒートマップ
 - **Experiments**: `/forward-kpt` の実験カンバン（In Progress / Success / Continue / Fail）
 - **Tries**: Try寿命タイムライン（実装済み/pending）
+- **Costs**: SessionEnd hook の Haiku 呼び出し実測（月次トークン・コスト・直近セッション）
 - **Self-Reviews / KPT Archive**: 生データ閲覧
 
 ### 手動でセッション分析をテスト
@@ -129,10 +130,54 @@ sleep 15 && ls -la ~/.claude/kpt-data/session-reviews/
 ├── kpt/                     # 週次KPT結果
 │   ├── 2026-W14.md
 │   └── 2026-W15.md
-└── experiments/             # /forward-kpt: 週次Experiment
-    ├── experiment_2026-W14.md
-    └── experiment_2026-W15.md
+├── experiments/             # /forward-kpt: 週次Experiment
+│   ├── experiment_2026-W14.md
+│   └── experiment_2026-W15.md
+└── cost-logs/               # SessionEnd hook: Haiku 呼び出しの usage / cost 実測
+    ├── cost_2026-03.jsonl
+    └── cost_2026-04.jsonl
 ```
+
+## Data Flow
+
+本システムが扱うデータの流れを明示する。
+
+### ローカルに残るデータ（`~/.claude/kpt-data/` 配下）
+
+- `activity-logs/activity_YYYY-MM.jsonl` — Stop hook が書く応答ごとの軽量ログ。**API 送信なし、ローカルファイル書き込みのみ**。
+- `session-reviews/YYYY-MM/*.md` — SessionEnd hook が Claude Haiku に transcript を要約させた自己分析結果。
+- `cost-logs/cost_YYYY-MM.jsonl` — SessionEnd hook の Haiku 呼び出しごとの usage / cost（input/output/cache tokens, `total_cost_usd`, duration）を JSONL で蓄積。
+- `kpt/*.md` — `/weekly-kpt` が生成する週次 KPT 全文。
+- `experiments/*.md` — `/forward-kpt` が仕込む週次 Experiment。
+
+### Anthropic API に送信されるデータ
+
+- **SessionEnd hook** が transcript（ユーザー / assistant の発言抜粋）を整形し、**Claude Haiku** に自己分析プロンプトとして送信する（`.claude/hooks/kpt-session-analyze.sh`）。
+- 送信内容は session review に書き戻されるため、ローカルに残るデータと内容が対応する。
+
+### API 送信されないデータ
+
+- Stop hook の activity-log はローカルファイルに JSONL を追記するだけで、API 呼び出しを一切行わない。
+
+## Cost Tracking
+
+推測値ではなく**実測値**で管理する。SessionEnd hook は `claude -p --output-format json` で Haiku を呼び、応答 JSON の `usage` / `total_cost_usd` / `duration_ms` を `~/.claude/kpt-data/cost-logs/cost_YYYY-MM.jsonl` に記録する。
+
+ダッシュボードの **Costs タブ** で以下を確認できる：
+
+- 累積: total cost (USD) / hook invocations / input / output / cache read / cache creation
+- 月次ブレークダウン（month × sessions × tokens × cost）
+- 直近 50 セッションの per-call 内訳（project / tokens / cost / duration）
+
+```bash
+python3 ~/.claude/scripts/kpt-viewer.py  # → http://localhost:8765 → Costs タブ
+```
+
+> **注意**: `total_cost_usd` は Anthropic API 単価に基づく計算値であり、Pro / Max 定額プラン利用時は実課金ではなく「API 換算した場合の目安」として読むこと。課金自体は利用プランに従う。
+
+### hook を一時的に無効化する
+
+API 呼び出しを止めたい場合、`~/.claude/settings.json` から `hooks.SessionEnd` エントリを削除する。Stop hook（activity-log）は API を呼ばないため、SessionEnd だけ外す運用も可能。
 
 ## 依存
 
