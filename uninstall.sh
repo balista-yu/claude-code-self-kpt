@@ -75,6 +75,7 @@ echo "[3/6] Removing skills ..."
 rm -rf "$CLAUDE_DIR/skills/weekly-kpt"
 rm -rf "$CLAUDE_DIR/skills/apply-kpt"
 rm -rf "$CLAUDE_DIR/skills/forward-kpt"
+rm -rf "$CLAUDE_DIR/skills/refine-kpt"
 
 # 4. Dashboard script
 echo "[4/6] Removing dashboard script ..."

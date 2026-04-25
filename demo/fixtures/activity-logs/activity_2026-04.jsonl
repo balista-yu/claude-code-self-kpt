@@ -1,0 +1,171 @@
+{
+  "timestamp": "2026-04-13T01:00:12Z",
+  "local_date": "2026-04-13",
+  "local_time": "10:00:12",
+  "session_id": "demo0001-sess-0000-0000-000000000001",
+  "cwd": "/home/balista-yu/code/demo-app",
+  "project": "demo-app",
+  "message": "通知設定機能の実装完了。PR作っていく。"
+}
+{
+  "timestamp": "2026-04-13T01:05:42Z",
+  "local_date": "2026-04-13",
+  "local_time": "10:05:42",
+  "session_id": "demo0001-sess-0000-0000-000000000001",
+  "cwd": "/home/balista-yu/code/demo-app",
+  "project": "demo-app",
+  "message": "PR作成〜。本文は通知設定を追加って書いたよ。"
+}
+{
+  "timestamp": "2026-04-13T01:12:05Z",
+  "local_date": "2026-04-13",
+  "local_time": "10:12:05",
+  "session_id": "demo0001-sess-0000-0000-000000000001",
+  "cwd": "/home/balista-yu/code/demo-app",
+  "project": "demo-app",
+  "message": "テンプレ使ってなかったごめん。書き直すね。"
+}
+{
+  "timestamp": "2026-04-14T05:20:33Z",
+  "local_date": "2026-04-14",
+  "local_time": "14:20:33",
+  "session_id": "demo0002-sess-0000-0000-000000000002",
+  "cwd": "/home/balista-yu/code/demo-app",
+  "project": "demo-app",
+  "message": "auth module のリファクタ開始。責務分離する。"
+}
+{
+  "timestamp": "2026-04-14T05:45:11Z",
+  "local_date": "2026-04-14",
+  "local_time": "14:45:11",
+  "session_id": "demo0002-sess-0000-0000-000000000002",
+  "cwd": "/home/balista-yu/code/demo-app",
+  "project": "demo-app",
+  "message": "responsibility分離 / 命名変更 / test修正まとめて1コミットで push した。"
+}
+{
+  "timestamp": "2026-04-14T05:52:18Z",
+  "local_date": "2026-04-14",
+  "local_time": "14:52:18",
+  "session_id": "demo0002-sess-0000-0000-000000000002",
+  "cwd": "/home/balista-yu/code/demo-app",
+  "project": "demo-app",
+  "message": "rebase で3コミットに分け直した。粒度意識する。"
+}
+{
+  "timestamp": "2026-04-15T00:32:10Z",
+  "local_date": "2026-04-15",
+  "local_time": "09:32:10",
+  "session_id": "demo0003-sess-0000-0000-000000000003",
+  "cwd": "/home/balista-yu/code/demo-app",
+  "project": "demo-app",
+  "message": "日付フォーマットバグの再現テスト先に書いた。"
+}
+{
+  "timestamp": "2026-04-15T00:48:27Z",
+  "local_date": "2026-04-15",
+  "local_time": "09:48:27",
+  "session_id": "demo0003-sess-0000-0000-000000000003",
+  "cwd": "/home/balista-yu/code/demo-app",
+  "project": "demo-app",
+  "message": "修正完了。テスト green。PRテンプレ埋めて提出完了。"
+}
+{
+  "timestamp": "2026-04-16T06:42:10Z",
+  "local_date": "2026-04-16",
+  "local_time": "15:42:10",
+  "session_id": "demo0004-sess-0000-0000-000000000004",
+  "cwd": "/home/balista-yu/code/demo-app",
+  "project": "demo-app",
+  "message": "検索フィルタ実装完了。動いてそうだしコミットするわ。"
+}
+{
+  "timestamp": "2026-04-16T06:48:33Z",
+  "local_date": "2026-04-16",
+  "local_time": "15:48:33",
+  "session_id": "demo0004-sess-0000-0000-000000000004",
+  "cwd": "/home/balista-yu/code/demo-app",
+  "project": "demo-app",
+  "message": "push完了。"
+}
+{
+  "timestamp": "2026-04-16T07:01:22Z",
+  "local_date": "2026-04-16",
+  "local_time": "16:01:22",
+  "session_id": "demo0004-sess-0000-0000-000000000004",
+  "cwd": "/home/balista-yu/code/demo-app",
+  "project": "demo-app",
+  "message": "CI red だ。ローカルテスト走らせてなかった。修正する。"
+}
+{
+  "timestamp": "2026-04-17T02:08:45Z",
+  "local_date": "2026-04-17",
+  "local_time": "11:08:45",
+  "session_id": "demo0005-sess-0000-0000-000000000005",
+  "cwd": "/home/balista-yu/code/demo-app",
+  "project": "demo-app",
+  "message": "API 追加の PR 作った。Summary 埋めた。"
+}
+{
+  "timestamp": "2026-04-17T02:14:12Z",
+  "local_date": "2026-04-17",
+  "local_time": "11:14:12",
+  "session_id": "demo0005-sess-0000-0000-000000000005",
+  "cwd": "/home/balista-yu/code/demo-app",
+  "project": "demo-app",
+  "message": "Test plan セクション埋めてなかったごめん、追記した。"
+}
+{
+  "timestamp": "2026-04-18T07:15:40Z",
+  "local_date": "2026-04-18",
+  "local_time": "16:15:40",
+  "session_id": "demo0006-sess-0000-0000-000000000006",
+  "cwd": "/home/balista-yu/code/demo-app",
+  "project": "demo-app",
+  "message": "error handling のリファクタ、まとめて1コミットにしちゃった。"
+}
+{
+  "timestamp": "2026-04-18T07:22:15Z",
+  "local_date": "2026-04-18",
+  "local_time": "16:22:15",
+  "session_id": "demo0006-sess-0000-0000-000000000006",
+  "cwd": "/home/balista-yu/code/demo-app",
+  "project": "demo-app",
+  "message": "同じ指摘 2回目だ。CLAUDE.md ルールだけじゃダメって話、なるほど。"
+}
+{
+  "timestamp": "2026-04-19T05:00:22Z",
+  "local_date": "2026-04-19",
+  "local_time": "14:00:22",
+  "session_id": "demo0007-sess-0000-0000-000000000007",
+  "cwd": "/home/balista-yu/code/demo-app",
+  "project": "demo-app",
+  "message": "DB マイグレーション追加。ローカル適用は OK。"
+}
+{
+  "timestamp": "2026-04-19T05:12:08Z",
+  "local_date": "2026-04-19",
+  "local_time": "14:12:08",
+  "session_id": "demo0007-sess-0000-0000-000000000007",
+  "cwd": "/home/balista-yu/code/demo-app",
+  "project": "demo-app",
+  "message": "PR 出した。マイグレーションの後に全テスト走らせてなかった…"
+}
+{
+  "timestamp": "2026-04-19T09:14:55Z",
+  "local_date": "2026-04-19",
+  "local_time": "18:14:55",
+  "session_id": "demo0008-sess-0000-0000-000000000008",
+  "cwd": "/home/balista-yu/code/demo-app",
+  "project": "demo-app",
+  "message": "typo 修正 PR。軽いから1行で出した。"
+}
+{
+  "timestamp": "2026-04-19T09:18:22Z",
+  "local_date": "2026-04-19",
+  "local_time": "18:18:22",
+  "session_id": "demo0008-sess-0000-0000-000000000008",
+  "cwd": "/home/balista-yu/code/demo-app",
+  "project": "demo-app",
+  "message": "また PRテンプレ指摘された。今週3回目。hook 化やるしかない。"
+}
