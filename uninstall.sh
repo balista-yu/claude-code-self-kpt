@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # =============================================================================
 # Claude Code Self-Improvement KPT System — Uninstaller
 # =============================================================================
@@ -14,6 +14,10 @@ set -euo pipefail
 
 CLAUDE_DIR="$HOME/.claude"
 PURGE_DATA=0
+
+# 削除対象の skill / hook。install.sh と対を成すため、追加時は両方更新する
+HOOKS=(kpt-activity-log kpt-session-analyze kpt-redact)
+SKILLS=(weekly-kpt apply-kpt forward-kpt refine-kpt)
 
 for arg in "$@"; do
   case "$arg" in
@@ -66,15 +70,15 @@ fi
 
 # 2. Hooks
 echo "[2/6] Removing hooks ..."
-rm -f "$CLAUDE_DIR/hooks/kpt-activity-log.sh"
-rm -f "$CLAUDE_DIR/hooks/kpt-session-analyze.sh"
-rm -f "$CLAUDE_DIR/hooks/kpt-redact.sh"
+for h in "${HOOKS[@]}"; do
+  rm -f "$CLAUDE_DIR/hooks/$h.sh"
+done
 
 # 3. Skills
 echo "[3/6] Removing skills ..."
-rm -rf "$CLAUDE_DIR/skills/weekly-kpt"
-rm -rf "$CLAUDE_DIR/skills/apply-kpt"
-rm -rf "$CLAUDE_DIR/skills/forward-kpt"
+for s in "${SKILLS[@]}"; do
+  rm -rf "$CLAUDE_DIR/skills/$s"
+done
 
 # 4. Dashboard script
 echo "[4/6] Removing dashboard script ..."

@@ -5,3 +5,7 @@
 
 # testing
 .devcontainer
+
+# demo
+/demo/out/*
+!/demo/out/.gitkeep

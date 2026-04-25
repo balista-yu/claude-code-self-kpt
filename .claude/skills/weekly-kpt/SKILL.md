@@ -10,9 +10,30 @@ allowed-tools: Read, Glob, Grep, Bash, Write
 あなたはこれから **自分自身の仕事** を振り返ります。
 主語は「自分（Claude Code）」です。人間の振り返りではなく、AIとしての自己改善が目的です。
 
+## 引数
+
+- `demo` — demo モード。読み先を `~/.claude/kpt-data/.demo/` に切り替え、`~/.claude/` 配下の実装差分判定も `~/.claude/kpt-data/.demo/virtual-dotclaude/` を見る。本番データには一切触らない。記事用・動作デモ用
+- 引数なし — 本番モード（`~/.claude/kpt-data/`）
+
+## Step 0: 読み先決定（demo モード分岐）
+
+引数 `demo` が指定されていれば:
+
+| 対象 | 本番パス | demo パス |
+|------|----------|-----------|
+| KPT データルート (`$KPT_ROOT`) | `~/.claude/kpt-data/` | `~/.claude/kpt-data/.demo/` |
+| `~/.claude/` 配下の差分検出先 (`$DOTCLAUDE_ROOT`) | `~/.claude/` | `~/.claude/kpt-data/.demo/virtual-dotclaude/` |
+| 出力先 (KPTファイル) | `$KPT_ROOT/kpt/YYYY-WXX.md` | `$KPT_ROOT/kpt/YYYY-WXX.md`（demo側） |
+
+demo モードでは Step 2-3 (Git ログ) と Step 2-5 (CLAUDE.md 読み込み) は `$DOTCLAUDE_ROOT/CLAUDE.md` を見る。プロジェクト側 `./CLAUDE.md` は demo では無視。
+
+demo モード時、冒頭で「（demo モードで実行中：$KPT_ROOT を対象）」と明示表示する。
+
 ## Step 1: スコープ確認
 
-ユーザーに確認:
+demo モード時はスキップ（対象 = demo-app、期間 = 2026-04-13 〜 2026-04-19 固定）。
+
+本番モード時はユーザーに確認:
 - 「このプロジェクトだけ振り返る？ それとも全プロジェクト横断で？」
 - 「対象期間は？（デフォルト: 直近1週間）」
 
@@ -20,21 +41,23 @@ allowed-tools: Read, Glob, Grep, Bash, Write
 
 以下の情報をすべて収集:
 
-1. **セッション自己分析**: `~/.claude/kpt-data/session-reviews/` から対象期間分を読む
+1. **セッション自己分析**: `$KPT_ROOT/session-reviews/` から対象期間分を読む
    - プロジェクト絞り込みが必要ならファイル内の「プロジェクト:」でフィルタ
-2. **アクティビティログ**: `~/.claude/kpt-data/activity-logs/activity_YYYY-MM.jsonl` から対象期間分を読む
+2. **アクティビティログ**: `$KPT_ROOT/activity-logs/activity_YYYY-MM.jsonl` から対象期間分を読む
    - `jq` で対象日付・プロジェクトでフィルタ
 3. **Gitログ**: `git log --oneline --since="1 week ago"` を実行（現在プロジェクト）
-4. **前回のKPT**: `~/.claude/kpt-data/kpt/` の最新ファイルを読む
-5. **現在のルール**: `~/.claude/CLAUDE.md` と `./CLAUDE.md` を読む
-6. **Try実装差分**: `~/.claude/` 配下の前週期間中の変更を検出
-   - `git -C ~/.claude log --since="<対象期間開始>" --until="<対象期間終了>" --name-status` で変更ファイル一覧
-   - `~/.claude` が git管理でない場合のフォールバック:
-     - 基準ファイル = **前回KPTファイル**（`~/.claude/kpt-data/kpt/YYYY-WXX.md` の前週版）
+   - demo モード時はスキップ（fixture にgit履歴は含めない）
+4. **前回のKPT**: `$KPT_ROOT/kpt/` の最新ファイルを読む
+5. **現在のルール**: `$DOTCLAUDE_ROOT/CLAUDE.md` と `./CLAUDE.md` を読む
+   - demo モード時は `./CLAUDE.md` をスキップ
+6. **Try実装差分**: `$DOTCLAUDE_ROOT` 配下の前週期間中の変更を検出
+   - 本番モード: `git -C ~/.claude log --since="<対象期間開始>" --until="<対象期間終了>" --name-status` で変更ファイル一覧
+   - `~/.claude` が git管理でない場合・demo モードのフォールバック:
+     - 基準ファイル = **前回KPTファイル**（`$KPT_ROOT/kpt/YYYY-WXX.md` の前週版）
      - 前回KPTが無い初回実行時は基準ファイル = **対象期間開始日の00:00タイムスタンプのダミー**（`touch -d "<対象期間開始> 00:00" /tmp/.kpt-since` 等で作成）
-     - `find ~/.claude/hooks ~/.claude/skills ~/.claude/CLAUDE.md ~/.claude/settings.json -newer <基準ファイル> -type f`
+     - `find $DOTCLAUDE_ROOT/hooks $DOTCLAUDE_ROOT/skills $DOTCLAUDE_ROOT/CLAUDE.md $DOTCLAUDE_ROOT/settings.json -newer <基準ファイル> -type f`
    - 対象: `hooks/*.sh`, `skills/**/SKILL.md`, `CLAUDE.md`, `settings.json`
-7. **進行中のExperiment**: `~/.claude/kpt-data/experiments/` から対象期間の未判定Experimentを読む（`/forward-kpt` で作成されたもの）
+7. **進行中のExperiment**: `$KPT_ROOT/experiments/` から対象期間の未判定Experimentを読む（`/forward-kpt` で作成されたもの）
 
 ## Step 3: 分析
 
@@ -84,7 +107,7 @@ allowed-tools: Read, Glob, Grep, Bash, Write
 
 ## Step 4: KPT生成
 
-`~/.claude/kpt-data/kpt/YYYY-WXX.md` に出力:
+`$KPT_ROOT/kpt/YYYY-WXX.md` に出力:
 
 ```markdown
 # Claude Code 自己改善KPT: YYYY年 第XX週
@@ -152,18 +175,19 @@ YYYY-MM-DD 〜 YYYY-MM-DD
 
 Step 3-b で判定した Experiment について、以下を実行:
 
-1. **`~/.claude/kpt-data/experiments/experiment_YYYY-WXX.md` の status を更新**
+1. **`$KPT_ROOT/experiments/experiment_YYYY-WXX.md` の status を更新**
    - success / fail / continue
    - 判定日と根拠を追記
 2. **CLAUDE.md の一時セクション削除**
-   - `~/.claude/CLAUDE.md` と `./CLAUDE.md` から
+   - `$DOTCLAUDE_ROOT/CLAUDE.md` と `./CLAUDE.md`（本番モードのみ）から
      `<!-- FORWARD-KPT-EXPERIMENTS:START -->` 〜 `<!-- FORWARD-KPT-EXPERIMENTS:END -->` ブロックを削除
    - `continue` のものが残る場合は、該当 E だけ残して他は削除
 
 ## Step 6: ユーザーへの提案
 
 KPT結果を提示した後:
-- 「Tryの中ですぐ実装できるものがあります。`/apply-kpt` で反映しますか？」と確認
-- 特にProblemの発生回数が多いものは強く推奨
+- 「次は `/refine-kpt` で Try をすり合わせましょう。採用/形を変える/保留/却下 を仕分けます」と案内（demo モードでは `/refine-kpt demo`）
+- 「そこまで済んだら `/apply-kpt` で採用分を実装に回せます」
+- 特にProblemの発生回数が多いものは refine で強く推奨
 - 「ルールはあるのに守れてない」Problemは **必ず** hook化を提案
 - 「今週は攻めの一手を `/forward-kpt` で仕込みますか？」と案内（過去反省だけで終わらせない）

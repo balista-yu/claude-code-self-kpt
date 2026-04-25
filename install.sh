@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # =============================================================================
 # Claude Code Self-Improvement KPT System — Installer
 # =============================================================================
@@ -7,6 +7,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE_DIR="$HOME/.claude"
+
+# 追加 / 削除対象のエントリ。skill / hook を増やしたら両方更新する
+HOOKS=(kpt-activity-log kpt-session-analyze kpt-redact)
+SKILLS=(weekly-kpt apply-kpt forward-kpt refine-kpt)
 
 echo "=== Claude Code Self-Improvement KPT ==="
 echo ""
@@ -24,30 +28,28 @@ fi
 # 1. ディレクトリ
 echo "[1/6] Creating directories..."
 mkdir -p "$CLAUDE_DIR/hooks"
-mkdir -p "$CLAUDE_DIR/skills/weekly-kpt"
-mkdir -p "$CLAUDE_DIR/skills/apply-kpt"
-mkdir -p "$CLAUDE_DIR/skills/forward-kpt"
 mkdir -p "$CLAUDE_DIR/scripts"
-mkdir -p "$CLAUDE_DIR/kpt-data/activity-logs"
-mkdir -p "$CLAUDE_DIR/kpt-data/session-reviews"
-mkdir -p "$CLAUDE_DIR/kpt-data/kpt"
-mkdir -p "$CLAUDE_DIR/kpt-data/experiments"
-mkdir -p "$CLAUDE_DIR/kpt-data/cost-logs"
+for s in "${SKILLS[@]}"; do
+  mkdir -p "$CLAUDE_DIR/skills/$s"
+done
+for d in activity-logs session-reviews kpt experiments cost-logs; do
+  mkdir -p "$CLAUDE_DIR/kpt-data/$d"
+done
 
 # 2. Hooks
 echo "[2/6] Installing hooks..."
-cp "$SCRIPT_DIR/.claude/hooks/kpt-activity-log.sh" "$CLAUDE_DIR/hooks/"
-cp "$SCRIPT_DIR/.claude/hooks/kpt-session-analyze.sh" "$CLAUDE_DIR/hooks/"
-cp "$SCRIPT_DIR/.claude/hooks/kpt-redact.sh" "$CLAUDE_DIR/hooks/"
-chmod +x "$CLAUDE_DIR/hooks/kpt-activity-log.sh"
-chmod +x "$CLAUDE_DIR/hooks/kpt-session-analyze.sh"
-chmod +x "$CLAUDE_DIR/hooks/kpt-redact.sh"
+for h in "${HOOKS[@]}"; do
+  src="$SCRIPT_DIR/.claude/hooks/$h.sh"
+  dst="$CLAUDE_DIR/hooks/$h.sh"
+  cp "$src" "$dst"
+  chmod +x "$dst"
+done
 
 # 3. Skills
 echo "[3/6] Installing skills..."
-cp "$SCRIPT_DIR/.claude/skills/weekly-kpt/SKILL.md" "$CLAUDE_DIR/skills/weekly-kpt/"
-cp "$SCRIPT_DIR/.claude/skills/apply-kpt/SKILL.md" "$CLAUDE_DIR/skills/apply-kpt/"
-cp "$SCRIPT_DIR/.claude/skills/forward-kpt/SKILL.md" "$CLAUDE_DIR/skills/forward-kpt/"
+for s in "${SKILLS[@]}"; do
+  cp "$SCRIPT_DIR/.claude/skills/$s/SKILL.md" "$CLAUDE_DIR/skills/$s/"
+done
 
 # 4. Dashboard
 echo "[4/6] Installing dashboard..."
@@ -107,9 +109,10 @@ echo "What happens now:"
 echo "  1. Every Claude response → activity logged (Stop hook)"
 echo "  2. Every session end → self-analysis generated (SessionEnd hook)"
 echo "  3. Weekly: run /weekly-kpt in Claude Code"
-echo "  4. Then: run /apply-kpt to auto-implement improvements"
-echo "  5. Optional: run /forward-kpt to set weekly Experiments (攻めの一手)"
-echo "  6. Dashboard: python3 ~/.claude/scripts/kpt-viewer.py"
+echo "  4. Refine: run /refine-kpt to triage Try items (採用/形を変える/保留/却下)"
+echo "  5. Apply: run /apply-kpt to auto-implement refined improvements"
+echo "  6. Optional: run /forward-kpt to set weekly Experiments (攻めの一手)"
+echo "  7. Dashboard: python3 ~/.claude/scripts/kpt-viewer.py"
 echo ""
 
 # Dependency check

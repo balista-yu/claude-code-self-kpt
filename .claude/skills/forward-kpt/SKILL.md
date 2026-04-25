@@ -2,7 +2,7 @@
 name: forward-kpt
 description: Claude Code自身の「向き直り」。過去反省ではなく、意図的な実験（Experiment）を週次で仕込む。成功したExperimentは次回KPTで Try昇格される。
 disable-model-invocation: true
-allowed-tools: Read, Glob, Grep, Bash, Write
+allowed-tools: Read, Glob, Grep, Bash, Write, AskUserQuestion
 ---
 
 # Claude Code 向き直り（Forward-KPT）
